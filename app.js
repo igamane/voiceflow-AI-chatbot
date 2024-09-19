@@ -28,6 +28,7 @@ app.get("/start", async (req, res) => {
 
 app.post("/chat", async (req, res) => {
   let { thread_id: threadId, message, assistant_id, initial_message } = req.body;
+  console.log(req.body);
 
   if (initial_message != "") {
     message = initial_message;

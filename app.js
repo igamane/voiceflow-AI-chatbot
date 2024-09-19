@@ -27,8 +27,11 @@ app.get("/start", async (req, res) => {
 });
 
 app.post("/chat", async (req, res) => {
-  const assistantId = process.env.ASSISTANT_ID;
-  const { thread_id: threadId, message } = req.body;
+  const { thread_id: threadId, message, assistantId, initial_message } = req.body;
+
+  if (initial_message != "") {
+    message = initial_message;
+  }
 
   if (!threadId) {
     return res.status(400).json({ error: "Missing thread_id" });

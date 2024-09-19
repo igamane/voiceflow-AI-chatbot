@@ -27,7 +27,7 @@ app.get("/start", async (req, res) => {
 });
 
 app.post("/chat", async (req, res) => {
-  let { thread_id: threadId, message, assistantId, initial_message } = req.body;
+  let { thread_id: threadId, message, assistant_id, initial_message } = req.body;
 
   if (initial_message != "") {
     message = initial_message;
@@ -45,7 +45,7 @@ app.post("/chat", async (req, res) => {
     });
 
     const run = await openai.beta.threads.runs.createAndPoll(threadId, {
-      assistant_id: assistantId,
+      assistant_id: assistant_id,
     });
     const messages = await openai.beta.threads.messages.list(run.thread_id);
     const response = messages.data[0].content[0].text.value;

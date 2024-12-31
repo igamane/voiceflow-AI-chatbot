@@ -8,6 +8,7 @@ const app = express();
 
 app.use(cors());
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 // Just a simple health check
 app.get("/", async (req, res) => {

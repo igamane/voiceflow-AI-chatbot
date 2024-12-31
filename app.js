@@ -1,23 +1,36 @@
-require("dotenv").config(); // Load environment variables from .env file
+require("dotenv").config(); // Still can load .env if you want fallback vars
 const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const OpenAI = require("openai");
 
 const app = express();
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 app.use(cors());
 app.use(bodyParser.json());
 
+// Just a simple health check
 app.get("/", async (req, res) => {
   res.send('working...');
 });
 
-app.get("/start", async (req, res) => {
+/**
+ * POST /start
+ *  - Expects { apiKey: "...your openai api key..." }
+ *  - Creates a new OpenAI thread
+ *  - Returns { thread_id: "..." }
+ */
+app.post("/start", async (req, res) => {
   try {
+    const { apiKey } = req.body;
+    if (!apiKey) {
+      return res.status(400).json({ error: "Missing apiKey" });
+    }
+
+    // Initialize OpenAI with the passed-in apiKey
+    const openai = new OpenAI({ apiKey });
+
+    // Create a new thread
     const thread = await openai.beta.threads.create();
     res.json({ thread_id: thread.id });
   } catch (error) {
@@ -26,28 +39,52 @@ app.get("/start", async (req, res) => {
   }
 });
 
+/**
+ * POST /chat
+ *  - Expects { apiKey, thread_id, message, assistant_id, initial_message }
+ *  - If `initial_message` is not empty, use that as the message
+ *  - Posts the user message, polls for completion, then returns assistant response
+ */
 app.post("/chat", async (req, res) => {
-  let { thread_id: threadId, message, assistant_id, initial_message } = req.body;
-  console.log(req.body);
-
-  if (initial_message != "") {
-    message = initial_message;
-  }
-
-  if (!threadId) {
-    return res.status(400).json({ error: "Missing thread_id" });
-  }
-
   try {
+    let {
+      apiKey,
+      thread_id: threadId,
+      message,
+      assistant_id,
+      initial_message,
+    } = req.body;
+
+    if (!apiKey) {
+      return res.status(400).json({ error: "Missing apiKey" });
+    }
+
+    // Initialize OpenAI with the passed-in apiKey
+    const openai = new OpenAI({ apiKey });
+
+    // If there's an initial_message, use it instead of "message"
+    if (initial_message) {
+      message = initial_message;
+    }
+
+    if (!threadId) {
+      return res.status(400).json({ error: "Missing thread_id" });
+    }
+
     console.log(`Received message: ${message} for thread ID: ${threadId}`);
+    
+    // 1) Create user message in that thread
     await openai.beta.threads.messages.create(threadId, {
       role: "user",
       content: message,
     });
 
+    // 2) Create and poll the run
     const run = await openai.beta.threads.runs.createAndPoll(threadId, {
       assistant_id: assistant_id,
     });
+
+    // 3) Get the list of messages to fetch the assistant's response
     const messages = await openai.beta.threads.messages.list(run.thread_id);
     const response = messages.data[0].content[0].text.value;
 
@@ -59,8 +96,7 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-port = 8080;
-
+const port = 8080;
 app.listen(port, () => {
-  console.log("Server running on port 8080");
+  console.log(`Server running on port ${port}`);
 });
